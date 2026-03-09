@@ -23,6 +23,7 @@ export default function EmployeeDashboard() {
   const subEnd = parentUser?.subscriptionEnd || currentUser.subscriptionEnd;
   const sub = getSubscriptionStatus(subEnd);
   const showStock = parentUser?.showStockToEmployees || false;
+  const showProducts = parentUser?.showProductsToEmployees || false;
 
   if (sub.status === 'expired') {
     return (
@@ -40,7 +41,7 @@ export default function EmployeeDashboard() {
   const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
     { id: 'invoice', label: 'Invoice', icon: <MessageSquare className="w-5 h-5" /> },
     { id: 'customers', label: 'Customers', icon: <Users className="w-5 h-5" /> },
-    { id: 'products', label: 'Products', icon: <Package className="w-5 h-5" /> },
+    ...(showProducts ? [{ id: 'products' as Tab, label: 'Products', icon: <Package className="w-5 h-5" /> }] : []),
     ...(showStock ? [{ id: 'stock' as Tab, label: 'Stock', icon: <Package className="w-5 h-5" /> }] : []),
   ];
 

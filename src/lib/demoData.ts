@@ -21,13 +21,13 @@ export const initialUsers: User[] = [
     id: 'admin1', username: 'admin', password: 'admin123', role: 'admin',
     firmName: 'BillSaathi HQ', gstNumber: '', email: 'admin@billsaathi.com', phone: '9999999999',
     plan: 'Enterprise', maxEmployees: 0, subscriptionStart: daysAgo(30), subscriptionEnd: daysFromNow(335),
-    active: true, showStockToEmployees: false,
+    active: true, showStockToEmployees: false, showProductsToEmployees: false,
   },
   {
     id: 'user1', username: 'rajesh', password: 'rajesh123', role: 'user',
     firmName: 'Rajesh Traders', gstNumber: '27AABCU9603R1ZM', email: 'rajesh@traders.com', phone: '9876543210',
     plan: 'Pro', maxEmployees: 5, subscriptionStart: daysAgo(25), subscriptionEnd: daysFromNow(5),
-    active: true, showStockToEmployees: true,
+    active: true, showStockToEmployees: true, showProductsToEmployees: true,
     firmSettings: {
       ...DEFAULT_FIRM_SETTINGS,
       address: 'Shop No. 45, Market Road',
@@ -45,7 +45,7 @@ export const initialUsers: User[] = [
     id: 'user2', username: 'sunita', password: 'sunita123', role: 'user',
     firmName: 'Sunita Electronics', gstNumber: '07CQZPS3762Q1ZV', email: 'sunita@electronics.com', phone: '9876543211',
     plan: 'Basic', maxEmployees: 2, subscriptionStart: daysAgo(10), subscriptionEnd: daysFromNow(200),
-    active: true, showStockToEmployees: false,
+    active: true, showStockToEmployees: false, showProductsToEmployees: false,
     firmSettings: {
       ...DEFAULT_FIRM_SETTINGS,
       address: '78 Nehru Place',
@@ -59,7 +59,7 @@ export const initialUsers: User[] = [
     id: 'emp1', username: 'mohan', password: 'mohan123', role: 'employee',
     firmName: 'Rajesh Traders', gstNumber: '', email: 'mohan@traders.com', phone: '9876543212',
     plan: 'Pro', maxEmployees: 0, subscriptionStart: daysAgo(25), subscriptionEnd: daysFromNow(5),
-    active: true, parentUserId: 'user1', showStockToEmployees: false,
+    active: true, parentUserId: 'user1', showStockToEmployees: false, showProductsToEmployees: false,
   },
 ];
 

@@ -37,7 +37,7 @@ export default function AdminDashboard() {
       id, username: newUser.username, password: newUser.password, role: 'user' as const,
       firmName: newUser.firmName, gstNumber: newUser.gstNumber, email: newUser.email,
       phone: newUser.phone, plan: newUser.plan, maxEmployees: newUser.maxEmployees,
-      subscriptionStart: today, subscriptionEnd: endDate, active: true, showStockToEmployees: false,
+      subscriptionStart: today, subscriptionEnd: endDate, active: true, showStockToEmployees: false, showProductsToEmployees: false,
     }]);
     setShowCreateUser(false);
     setNewUser({ username: '', password: '', firmName: '', gstNumber: '', email: '', phone: '', plan: 'Basic', maxEmployees: 2, duration: '1month', customEnd: '' });
