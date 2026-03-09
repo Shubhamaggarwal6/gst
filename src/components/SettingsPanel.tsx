@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { INDIAN_STATES, DEFAULT_FIRM_SETTINGS, FirmSettings } from '@/lib/types';
 
 export default function SettingsPanel() {
-  const { currentUser, users, customers, products, invoices, payments, purchases, setUsers } = useApp();
+  const { currentUser, setCurrentUser, users, customers, products, invoices, payments, purchases, setUsers } = useApp();
   const [backupProgress, setBackupProgress] = useState<string | null>(null);
   const [oldPw, setOldPw] = useState('');
   const [newPw, setNewPw] = useState('');
@@ -37,12 +37,16 @@ export default function SettingsPanel() {
   };
 
   const handleFirmUpdate = () => {
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, firmName, gstNumber, email, phone, firmSettings: settings } : u));
+    const updatedUser = { ...currentUser, firmName, gstNumber, email, phone, firmSettings: settings };
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    setCurrentUser(updatedUser);
     setMsg('✅ Firm details aur settings update ho gayi!');
   };
 
   const toggleStockVisibility = () => {
-    setUsers(prev => prev.map(u => u.id === currentUser.id ? { ...u, showStockToEmployees: !u.showStockToEmployees } : u));
+    const updatedUser = { ...currentUser, showStockToEmployees: !currentUser.showStockToEmployees };
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    setCurrentUser(updatedUser);
   };
 
   return (
