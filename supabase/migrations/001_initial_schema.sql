@@ -108,6 +108,13 @@ create table if not exists public.purchases (
   created_at timestamptz default now()
 );
 
+-- Indexes for faster queries by user_id
+create index if not exists idx_customers_user_id  on public.customers(user_id);
+create index if not exists idx_products_user_id   on public.products(user_id);
+create index if not exists idx_invoices_user_id   on public.invoices(user_id);
+create index if not exists idx_payments_user_id   on public.payments(user_id);
+create index if not exists idx_purchases_user_id  on public.purchases(user_id);
+
 -- Enable Row Level Security
 alter table public.app_users enable row level security;
 alter table public.customers enable row level security;
@@ -117,9 +124,32 @@ alter table public.payments enable row level security;
 alter table public.purchases enable row level security;
 
 -- Allow all operations with anon key (app handles its own auth)
-create policy "Allow all for anon" on public.app_users for all using (true) with check (true);
-create policy "Allow all for anon" on public.customers for all using (true) with check (true);
-create policy "Allow all for anon" on public.products for all using (true) with check (true);
-create policy "Allow all for anon" on public.invoices for all using (true) with check (true);
-create policy "Allow all for anon" on public.payments for all using (true) with check (true);
-create policy "Allow all for anon" on public.purchases for all using (true) with check (true);
+create policy "anon_all_app_users"  on public.app_users  for all using (true) with check (true);
+create policy "anon_all_customers"  on public.customers  for all using (true) with check (true);
+create policy "anon_all_products"   on public.products   for all using (true) with check (true);
+create policy "anon_all_invoices"   on public.invoices   for all using (true) with check (true);
+create policy "anon_all_payments"   on public.payments   for all using (true) with check (true);
+create policy "anon_all_purchases"  on public.purchases  for all using (true) with check (true);
+
+-- ─── Storage bucket for backups ───────────────────────────────────────────────
+-- Creates the "billsaathi-backups" bucket (public, so download URLs work)
+insert into storage.buckets (id, name, public)
+values ('billsaathi-backups', 'billsaathi-backups', true)
+on conflict (id) do nothing;
+
+-- Allow anonymous users to upload, download, list and delete their own backups
+create policy "anon_select_backups"
+  on storage.objects for select
+  using (bucket_id = 'billsaathi-backups');
+
+create policy "anon_insert_backups"
+  on storage.objects for insert
+  with check (bucket_id = 'billsaathi-backups');
+
+create policy "anon_update_backups"
+  on storage.objects for update
+  using (bucket_id = 'billsaathi-backups');
+
+create policy "anon_delete_backups"
+  on storage.objects for delete
+  using (bucket_id = 'billsaathi-backups');
