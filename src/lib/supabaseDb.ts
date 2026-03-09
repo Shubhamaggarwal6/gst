@@ -255,7 +255,7 @@ export async function upsertCustomer(customer: Customer): Promise<void> {
 }
 
 export async function deleteCustomer(id: string, userId: string): Promise<void> {
-  const { error } = await supabase.from('customers').delete().eq('id', id).eq('user_id', userId);
+  const { error } = await supabase.from('customers').delete().match({ id, user_id: userId });
   if (error) console.error('deleteCustomer error:', error);
 }
 
@@ -273,7 +273,7 @@ export async function upsertProduct(product: Product): Promise<void> {
 }
 
 export async function deleteProduct(id: string, userId: string): Promise<void> {
-  const { error } = await supabase.from('products').delete().eq('id', id).eq('user_id', userId);
+  const { error } = await supabase.from('products').delete().match({ id, user_id: userId });
   if (error) console.error('deleteProduct error:', error);
 }
 
@@ -291,7 +291,7 @@ export async function upsertInvoice(invoice: Invoice): Promise<void> {
 }
 
 export async function deleteInvoice(id: string, userId: string): Promise<void> {
-  const { error } = await supabase.from('invoices').delete().eq('id', id).eq('user_id', userId);
+  const { error } = await supabase.from('invoices').delete().match({ id, user_id: userId });
   if (error) console.error('deleteInvoice error:', error);
 }
 
@@ -309,7 +309,7 @@ export async function upsertPayment(payment: Payment): Promise<void> {
 }
 
 export async function deletePayment(id: string, userId: string): Promise<void> {
-  const { error } = await supabase.from('payments').delete().eq('id', id).eq('user_id', userId);
+  const { error } = await supabase.from('payments').delete().match({ id, user_id: userId });
   if (error) console.error('deletePayment error:', error);
 }
 
@@ -327,6 +327,6 @@ export async function upsertPurchase(purchase: PurchaseEntry): Promise<void> {
 }
 
 export async function deletePurchase(id: string, userId: string): Promise<void> {
-  const { error } = await supabase.from('purchases').delete().eq('id', id).eq('user_id', userId);
+  const { error } = await supabase.from('purchases').delete().match({ id, user_id: userId });
   if (error) console.error('deletePurchase error:', error);
 }
