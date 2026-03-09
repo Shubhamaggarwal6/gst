@@ -49,6 +49,12 @@ export default function SettingsPanel() {
     setCurrentUser(updatedUser);
   };
 
+  const toggleProductVisibility = () => {
+    const updatedUser = { ...currentUser, showProductsToEmployees: !currentUser.showProductsToEmployees };
+    setUsers(prev => prev.map(u => u.id === currentUser.id ? updatedUser : u));
+    setCurrentUser(updatedUser);
+  };
+
   return (
     <div className="animate-fade-in space-y-6 max-w-2xl">
       <h2 className="text-xl font-bold text-foreground">Settings</h2>
@@ -139,8 +145,15 @@ export default function SettingsPanel() {
         </div>
       </div>
 
-      {/* Employee Stock Toggle */}
-      <div className="glass-card p-5">
+      {/* Employee Access Toggles */}
+      <div className="glass-card p-5 space-y-4">
+        <div className="flex items-center justify-between min-h-[44px]">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">📦 Employees ko Products Dikhayein</h3>
+            <p className="text-xs text-muted-foreground">Toggle on karein toh employees products dekh sakenge</p>
+          </div>
+          <Switch checked={currentUser.showProductsToEmployees} onCheckedChange={toggleProductVisibility} />
+        </div>
         <div className="flex items-center justify-between min-h-[44px]">
           <div>
             <h3 className="text-sm font-semibold text-foreground">👷 Employees ko Stock Dikhayein</h3>

@@ -26,7 +26,7 @@ export default function EmployeeManager() {
       role: 'employee' as const, firmName: currentUser.firmName, gstNumber: '',
       email: form.email, phone: form.phone, plan: currentUser.plan, maxEmployees: 0,
       subscriptionStart: currentUser.subscriptionStart, subscriptionEnd: currentUser.subscriptionEnd,
-      active: true, parentUserId: currentUser.id, showStockToEmployees: false,
+      active: true, parentUserId: currentUser.id, showStockToEmployees: false, showProductsToEmployees: false,
     }]);
     setForm({ username: '', password: '', email: '', phone: '' });
     setShowAdd(false);

@@ -81,6 +81,7 @@ export interface User {
   active: boolean;
   parentUserId?: string;
   showStockToEmployees: boolean;
+  showProductsToEmployees: boolean;
   firmSettings?: FirmSettings;
 }
 
