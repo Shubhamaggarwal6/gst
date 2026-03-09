@@ -1,6 +1,6 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import { numberToWords, formatDate } from './subscription';
@@ -169,24 +169,18 @@ export function downloadInvoicePDF(inv: Invoice, firm: User | null | undefined, 
 }
 
 // ===== EXCEL HELPERS =====
-export function downloadExcel(data: any[], sheetName: string, fileName: string) {
-  const ws = XLSX.utils.json_to_sheet(data);
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, sheetName.substring(0, 31));
-  XLSX.writeFile(wb, fileName + '.xlsx');
+export async function downloadExcel(data: any[], sheetName: string, fileName: string): Promise<void> {
+  const buffer = await generateXlsxBuffer([{ data, name: sheetName }]);
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName + '.xlsx');
 }
 
-export function downloadMultiSheetExcel(sheets: { data: any[]; name: string }[], fileName: string) {
-  const wb = XLSX.utils.book_new();
-  sheets.forEach(({ data, name }) => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31));
-  });
-  XLSX.writeFile(wb, fileName + '.xlsx');
+export async function downloadMultiSheetExcel(sheets: { data: any[]; name: string }[], fileName: string): Promise<void> {
+  const buffer = await generateXlsxBuffer(sheets);
+  saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), fileName + '.xlsx');
 }
 
 // ===== INVOICE EXCEL =====
-export function downloadInvoiceExcel(inv: Invoice) {
+export async function downloadInvoiceExcel(inv: Invoice): Promise<void> {
   const details = [{
     'Invoice No': inv.invoiceNumber, Date: inv.date, Customer: inv.customerName,
     GSTIN: inv.customerGst || 'N/A', 'Place of Supply': inv.placeOfSupply,
@@ -200,14 +194,14 @@ export function downloadInvoiceExcel(inv: Invoice) {
     'GST Amt': (it.price * it.quantity * it.gstPercent / 100).toFixed(2),
     Total: (it.price * it.quantity * (1 + it.gstPercent / 100)).toFixed(2),
   }));
-  downloadMultiSheetExcel([
+  await downloadMultiSheetExcel([
     { data: details, name: 'Invoice Details' },
     { data: items, name: 'Tax Breakup' },
   ], `Invoice_${inv.invoiceNumber}`);
 }
 
 // ===== BULK INVOICE EXCEL =====
-export function downloadBulkInvoiceExcel(invoices: Invoice[], dateRange?: string) {
+export async function downloadBulkInvoiceExcel(invoices: Invoice[], dateRange?: string): Promise<void> {
   const rows = invoices.map(i => ({
     'Invoice No': i.invoiceNumber, Date: i.date, Customer: i.customerName,
     GSTIN: i.customerGst || '', Taxable: i.totalAmount,
@@ -215,11 +209,11 @@ export function downloadBulkInvoiceExcel(invoices: Invoice[], dateRange?: string
     Total: i.grandTotal, Status: i.status,
     'Created By': i.createdBy.name, Items: i.items.length,
   }));
-  downloadExcel(rows, 'Invoices', `InvoiceList_${dateRange || 'All'}`);
+  await downloadExcel(rows, 'Invoices', `InvoiceList_${dateRange || 'All'}`);
 }
 
 // ===== GSTR-1 EXCEL (GSTN FORMAT) =====
-export function downloadGSTR1Excel(invoices: Invoice[], firmUser: User | null | undefined) {
+export async function downloadGSTR1Excel(invoices: Invoice[], firmUser: User | null | undefined): Promise<void> {
   const b2b = invoices.filter(i => i.customerGst);
   const b2c = invoices.filter(i => !i.customerGst);
   const b2cl = b2c.filter(i => i.isInterState && i.grandTotal > 250000);
@@ -278,7 +272,7 @@ export function downloadGSTR1Excel(invoices: Invoice[], firmUser: User | null | 
   }];
 
   const month = new Date().toLocaleString('en-IN', { month: 'short', year: 'numeric' });
-  downloadMultiSheetExcel([
+  await downloadMultiSheetExcel([
     { data: b2bRows, name: 'B2B' },
     { data: b2clRows, name: 'B2C Large' },
     { data: b2csRows, name: 'B2C Small' },
@@ -357,10 +351,10 @@ export function downloadGSTR3BPDF(
 }
 
 // ===== MONTHLY REPORT EXCEL =====
-export function downloadMonthlyExcel(
+export async function downloadMonthlyExcel(
   invoices: Invoice[], customers: Customer[], products: Product[],
   payments: Payment[], firmUser: User | null | undefined
-) {
+): Promise<void> {
   const totalTaxable = invoices.reduce((s, i) => s + i.totalAmount, 0);
   const totalGst = invoices.reduce((s, i) => s + i.totalGst, 0);
   const totalValue = invoices.reduce((s, i) => s + i.grandTotal, 0);
@@ -406,7 +400,7 @@ export function downloadMonthlyExcel(
   }));
 
   const month = new Date().toLocaleString('en-IN', { month: 'short', year: 'numeric' });
-  downloadMultiSheetExcel([
+  await downloadMultiSheetExcel([
     { data: summary, name: 'Executive Summary' },
     { data: rateRows, name: 'Rate-wise Summary' },
     { data: custRows as any[], name: 'Customer-wise' },
@@ -415,20 +409,20 @@ export function downloadMonthlyExcel(
 }
 
 // ===== STOCK REPORT =====
-export function downloadStockExcel(products: Product[]) {
+export async function downloadStockExcel(products: Product[]): Promise<void> {
   const rows = products.map(p => ({
     Product: p.name, HSN: p.hsn, Unit: p.unit, Price: p.price,
     'GST%': p.gstPercent, 'Current Stock': p.stock,
     'Min Level': p.lowStockThreshold,
     Alert: p.stock === 0 ? '🔴 OUT OF STOCK' : p.stock <= p.lowStockThreshold ? '🟡 LOW STOCK' : '🟢 OK',
   }));
-  downloadExcel(rows, 'Stock Report', `StockReport_${new Date().toISOString().split('T')[0]}`);
+  await downloadExcel(rows, 'Stock Report', `StockReport_${new Date().toISOString().split('T')[0]}`);
 }
 
 // ===== OUTSTANDING EXCEL =====
-export function downloadOutstandingExcel(
+export async function downloadOutstandingExcel(
   customers: Customer[], invoices: Invoice[], payments: Payment[]
-) {
+): Promise<void> {
   const rows = customers.map(c => {
     const ci = invoices.filter(i => i.customerId === c.id);
     const cp = payments.filter(p => p.customerId === c.id).reduce((s, p) => s + p.amount, 0);
@@ -439,18 +433,18 @@ export function downloadOutstandingExcel(
     const days = oldest ? Math.ceil((Date.now() - new Date(oldest.date).getTime()) / 86400000) : 0;
     return { Customer: c.name, Phone: c.phone, GSTIN: c.gstNumber || '-', 'Oldest Invoice': oldest?.invoiceNumber || '', Days: days, 'Amount Due': pending };
   }).filter(Boolean);
-  downloadExcel(rows as any[], 'Outstanding', `Outstanding_${new Date().toISOString().split('T')[0]}`);
+  await downloadExcel(rows as any[], 'Outstanding', `Outstanding_${new Date().toISOString().split('T')[0]}`);
 }
 
 // ===== PURCHASE REGISTER EXCEL =====
-export function downloadPurchaseExcel(purchases: PurchaseEntry[]) {
+export async function downloadPurchaseExcel(purchases: PurchaseEntry[]): Promise<void> {
   const rows = purchases.map(p => ({
     Date: p.invoiceDate, Supplier: p.supplierName, GSTIN: p.supplierGstin,
     'Invoice No': p.invoiceNumber, Taxable: p.taxableAmount,
     IGST: p.igst, CGST: p.cgst, SGST: p.sgst,
     Total: p.taxableAmount + p.igst + p.cgst + p.sgst, Description: p.description,
   }));
-  downloadExcel(rows, 'Purchases', `PurchaseRegister_${new Date().toISOString().split('T')[0]}`);
+  await downloadExcel(rows, 'Purchases', `PurchaseRegister_${new Date().toISOString().split('T')[0]}`);
 }
 
 // ===== CUSTOMER LEDGER PDF =====
@@ -520,7 +514,7 @@ export async function downloadFullBackup(
     Address: firm.firmSettings?.address || '', City: firm.firmSettings?.city || '',
     State: firm.firmSettings?.state || '', Bank: firm.firmSettings?.bankName || '',
   }];
-  zip.file('01_Firm_Info.xlsx', generateXlsxBuffer([{ data: firmData, name: 'Firm Details' }]));
+  zip.file('01_Firm_Info.xlsx', await generateXlsxBuffer([{ data: firmData, name: 'Firm Details' }]));
 
   // 2. Products
   onProgress?.(2, total);
@@ -528,7 +522,7 @@ export async function downloadFullBackup(
     ID: p.id, Name: p.name, HSN: p.hsn, Price: p.price, 'GST%': p.gstPercent,
     Unit: p.unit, Stock: p.stock, 'Min Stock': p.lowStockThreshold,
   }));
-  zip.file('02_Products.xlsx', generateXlsxBuffer([{ data: prodData, name: 'Products' }]));
+  zip.file('02_Products.xlsx', await generateXlsxBuffer([{ data: prodData, name: 'Products' }]));
 
   // 3. Customers
   onProgress?.(3, total);
@@ -536,7 +530,7 @@ export async function downloadFullBackup(
     ID: c.id, Name: c.name, Phone: c.phone, GSTIN: c.gstNumber, Address: c.address,
     City: c.city || '', State: c.state || '',
   }));
-  zip.file('03_Customers.xlsx', generateXlsxBuffer([{ data: custData, name: 'Customers' }]));
+  zip.file('03_Customers.xlsx', await generateXlsxBuffer([{ data: custData, name: 'Customers' }]));
 
   // 4. Invoices
   onProgress?.(4, total);
@@ -555,7 +549,7 @@ export async function downloadFullBackup(
       Taxable: it.price * it.quantity, 'GST%': it.gstPercent,
     });
   }));
-  zip.file('04_Invoices.xlsx', generateXlsxBuffer([
+  zip.file('04_Invoices.xlsx', await generateXlsxBuffer([
     { data: invMaster, name: 'Invoice Master' },
     { data: invItems, name: 'Invoice Items' },
   ]));
@@ -566,7 +560,7 @@ export async function downloadFullBackup(
     Date: p.date, 'Customer ID': p.customerId, Amount: p.amount,
     Mode: p.mode, 'Invoice ID': p.invoiceId || '', Note: p.note,
   }));
-  zip.file('05_Payments.xlsx', generateXlsxBuffer([{ data: payData, name: 'Payments' }]));
+  zip.file('05_Payments.xlsx', await generateXlsxBuffer([{ data: payData, name: 'Payments' }]));
 
   // 6. Employees
   onProgress?.(6, total);
@@ -575,7 +569,7 @@ export async function downloadFullBackup(
     ID: e.id, Name: e.username, Active: e.active ? 'Yes' : 'No',
     'Invoices Made': invoices.filter(i => i.createdBy.id === e.id).length,
   }));
-  zip.file('06_Employees.xlsx', generateXlsxBuffer([{ data: empData.length ? empData : [{ Note: 'No employees' }], name: 'Employees' }]));
+  zip.file('06_Employees.xlsx', await generateXlsxBuffer([{ data: empData.length ? empData : [{ Note: 'No employees' }], name: 'Employees' }]));
 
   // 7. Purchases
   onProgress?.(7, total);
@@ -584,7 +578,7 @@ export async function downloadFullBackup(
     'Invoice No': p.invoiceNumber, Taxable: p.taxableAmount,
     IGST: p.igst, CGST: p.cgst, SGST: p.sgst, Description: p.description,
   }));
-  zip.file('07_Purchase_Register.xlsx', generateXlsxBuffer([{ data: purData.length ? purData : [{ Note: 'No purchases' }], name: 'Purchases' }]));
+  zip.file('07_Purchase_Register.xlsx', await generateXlsxBuffer([{ data: purData.length ? purData : [{ Note: 'No purchases' }], name: 'Purchases' }]));
 
   // 8. README
   onProgress?.(8, total);
@@ -624,7 +618,7 @@ export async function downloadCAPackage(
 
   // 1. GSTR-1
   onProgress?.(1, total);
-  zip.file(`GSTR1.xlsx`, generateGSTR1Buffer(invoices, firmUser));
+  zip.file(`GSTR1.xlsx`, await generateGSTR1Buffer(invoices, firmUser));
 
   // 2. GSTR-3B
   onProgress?.(2, total);
@@ -642,7 +636,7 @@ export async function downloadCAPackage(
     if (pending <= 0) return null;
     return { Customer: c.name, Phone: c.phone, GSTIN: c.gstNumber || '-', 'Amount Due': pending };
   }).filter(Boolean);
-  zip.file('Outstanding_Debtors.xlsx', generateXlsxBuffer([{ data: outRows.length ? outRows as any[] : [{ Note: 'No outstanding' }], name: 'Outstanding' }]));
+  zip.file('Outstanding_Debtors.xlsx', await generateXlsxBuffer([{ data: outRows.length ? outRows as any[] : [{ Note: 'No outstanding' }], name: 'Outstanding' }]));
 
   // 4. Purchase Register
   onProgress?.(4, total);
@@ -651,7 +645,7 @@ export async function downloadCAPackage(
     'Invoice No': p.invoiceNumber, Taxable: p.taxableAmount,
     IGST: p.igst, CGST: p.cgst, SGST: p.sgst,
   }));
-  zip.file('Purchase_Register.xlsx', generateXlsxBuffer([{ data: purData.length ? purData : [{ Note: 'No purchases' }], name: 'Purchases' }]));
+  zip.file('Purchase_Register.xlsx', await generateXlsxBuffer([{ data: purData.length ? purData : [{ Note: 'No purchases' }], name: 'Purchases' }]));
 
   // 5. HSN Summary
   onProgress?.(5, total);
@@ -666,7 +660,7 @@ export async function downloadCAPackage(
     if (inv.isInterState) hsnMap[key].IGST += gst;
     else { hsnMap[key].CGST += gst / 2; hsnMap[key].SGST += gst / 2; }
   }));
-  zip.file('HSN_Summary.xlsx', generateXlsxBuffer([{ data: Object.values(hsnMap), name: 'HSN' }]));
+  zip.file('HSN_Summary.xlsx', await generateXlsxBuffer([{ data: Object.values(hsnMap), name: 'HSN' }]));
 
   // 6. README
   onProgress?.(6, total);
@@ -678,16 +672,20 @@ export async function downloadCAPackage(
 }
 
 // ===== HELPERS =====
-function generateXlsxBuffer(sheets: { data: any[]; name: string }[]): Uint8Array {
-  const wb = XLSX.utils.book_new();
+async function generateXlsxBuffer(sheets: { data: any[]; name: string }[]): Promise<Uint8Array> {
+  const wb = new ExcelJS.Workbook();
   sheets.forEach(({ data, name }) => {
-    const ws = XLSX.utils.json_to_sheet(data);
-    XLSX.utils.book_append_sheet(wb, ws, name.substring(0, 31));
+    const ws = wb.addWorksheet(name.substring(0, 31));
+    if (data.length > 0) {
+      ws.columns = Object.keys(data[0]).map(key => ({ header: key, key, width: 15 }));
+      data.forEach(row => ws.addRow(row as Record<string, unknown>));
+    }
   });
-  return XLSX.write(wb, { bookType: 'xlsx', type: 'array' }) as Uint8Array;
+  const buffer = await wb.xlsx.writeBuffer();
+  return buffer instanceof Uint8Array ? buffer : new Uint8Array(buffer as ArrayBuffer);
 }
 
-function generateGSTR1Buffer(invoices: Invoice[], firmUser: User | null | undefined): Uint8Array {
+async function generateGSTR1Buffer(invoices: Invoice[], firmUser: User | null | undefined): Promise<Uint8Array> {
   const b2b = invoices.filter(i => i.customerGst);
   const b2bRows = b2b.map(i => ({
     'GSTIN of Receiver': i.customerGst, 'Receiver Name': i.customerName,
