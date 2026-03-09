@@ -173,12 +173,13 @@ export default function SettingsPanel() {
           disabled={!!backupProgress}
           onClick={async () => {
             if (!currentUser) return;
+            const backupUserId = currentUser.role === 'employee' && currentUser.parentUserId ? currentUser.parentUserId : currentUser.id;
             const { downloadFullBackup } = await import('@/lib/exportUtils');
             setBackupProgress('Taiyaar ho raha hai...');
             await downloadFullBackup(
-              currentUser, users, customers.filter(c => c.userId === currentUser.id), products.filter(p => p.userId === currentUser.id),
-              invoices.filter(i => i.userId === currentUser.id), payments.filter(p => p.userId === currentUser.id),
-              purchases.filter(p => p.userId === currentUser.id),
+              currentUser, users, customers.filter(c => c.userId === backupUserId), products.filter(p => p.userId === backupUserId),
+              invoices.filter(i => i.userId === backupUserId), payments.filter(p => p.userId === backupUserId),
+              purchases.filter(p => p.userId === backupUserId),
               (step, total) => setBackupProgress(`Files ban rahi hain: ${step}/${total}`)
             );
             setBackupProgress('✅ Backup download ho gaya!');

@@ -29,8 +29,9 @@ export default function UserDashboard() {
   if (!currentUser) return null;
 
   const sub = getSubscriptionStatus(currentUser.subscriptionEnd);
-  const myInvoices = invoices.filter(i => i.userId === currentUser.id);
-  const myProducts = products.filter(p => p.userId === currentUser.id);
+  const userId = currentUser.role === 'employee' && currentUser.parentUserId ? currentUser.parentUserId : currentUser.id;
+  const myInvoices = invoices.filter(i => i.userId === userId);
+  const myProducts = products.filter(p => p.userId === userId);
   const todaySales = myInvoices.filter(i => i.date === new Date().toISOString().split('T')[0]).reduce((s, i) => s + i.grandTotal, 0);
   const totalPending = myInvoices.filter(i => i.status !== 'paid').reduce((s, i) => s + i.grandTotal, 0);
   const totalRevenue = myInvoices.reduce((s, i) => s + i.grandTotal, 0);
