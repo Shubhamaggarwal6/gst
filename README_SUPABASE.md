@@ -1,76 +1,101 @@
 # Supabase Integration Setup
 
-This document explains how to set up the Supabase backend for BillSaathi.
+This document explains **exactly** what you need to configure in Supabase to make BillSaathi work.
 
 ## Prerequisites
 
 - A [Supabase](https://supabase.com) account
 - Node.js and npm installed
 
-## 1. Create a Supabase Project
+---
+
+## Step 1 — Create a Supabase Project
 
 1. Go to [https://supabase.com/dashboard](https://supabase.com/dashboard)
 2. Click **New project**
-3. Fill in the project name (e.g., `billsaathi`), database password, and region
-4. Click **Create new project** and wait for it to be provisioned
+3. Fill in:
+   - **Project name** — e.g. `billsaathi`
+   - **Database Password** — choose a strong password (save it somewhere safe)
+   - **Region** — pick the one closest to you
+4. Click **Create new project** and wait (~2 min) for it to be provisioned
 
-## 2. Run the SQL Migration
+---
 
-1. In your Supabase project dashboard, go to **SQL Editor**
+## Step 2 — Run the SQL Migration (creates all tables, indexes, policies AND storage bucket)
+
+> ⚠️ This single script sets up **everything** in Supabase — tables, row-level security, indexes, and the storage bucket. You only need to run it once.
+
+1. In your Supabase project dashboard, click **SQL Editor** in the left sidebar
 2. Click **New query**
-3. Copy the contents of `supabase/migrations/001_initial_schema.sql`
-4. Paste into the SQL editor and click **Run**
+3. Open the file `supabase/migrations/001_initial_schema.sql` from this project
+4. Copy its **entire** contents and paste into the SQL editor
+5. Click **Run** (or press `Ctrl+Enter`)
 
-This will create the following tables:
-- `app_users` — App-level user profiles (not Supabase auth users)
-- `customers` — Customer records per user
-- `products` — Product/inventory records per user
-- `invoices` — GST invoices per user
-- `payments` — Payment records per user
-- `purchases` — Purchase register entries per user
+After running, you should see **no errors**. The script creates:
 
-Row Level Security (RLS) is enabled on all tables with permissive policies, as the app manages its own authentication.
+| Object | Type | Purpose |
+|--------|------|---------|
+| `app_users` | Table | App-level user profiles |
+| `customers` | Table | Customer records per user |
+| `products` | Table | Product / inventory records |
+| `invoices` | Table | GST invoices |
+| `payments` | Table | Payment records |
+| `purchases` | Table | Purchase register entries |
+| `idx_*_user_id` | Indexes | Faster queries by user |
+| RLS policies | Security | Allow anonymous access (app manages its own auth) |
+| `billsaathi-backups` | Storage bucket | File backups (public) |
+| Storage policies | Security | Allow anonymous upload/download of backups |
 
-## 3. Create the Storage Bucket
+---
 
-1. In your Supabase project dashboard, go to **Storage**
-2. Click **New bucket**
-3. Name it `billsaathi-backups`
-4. Enable **Public bucket** (so backups can be downloaded via public URL)
-5. Click **Create bucket**
+## Step 3 — Get Your API Credentials
 
-## 4. Configure Environment Variables
+1. In the left sidebar go to **Settings → API**
+2. Copy:
+   - **Project URL** — looks like `https://xxxxxxxxxxxx.supabase.co`
+   - **anon / public key** — the long JWT string under *Project API keys*
 
-Create a `.env.local` file in the project root (copy from `.env.example`):
+---
+
+## Step 4 — Configure Environment Variables
+
+Create a `.env.local` file in the project root:
 
 ```bash
 cp .env.example .env.local
 ```
 
-Edit `.env.local` with your Supabase project credentials:
+Open `.env.local` and fill in your credentials from Step 3:
 
 ```
 VITE_SUPABASE_URL=https://your-project-id.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```
 
-You can find these values in your Supabase project dashboard under **Settings → API**.
+> **Tip:** `.env.local` is listed in `.gitignore` — it will never be committed to git.
 
-> **Note:** The credentials are also hardcoded as fallbacks in `src/lib/supabase.ts` for convenience during development. For production, always use environment variables.
+---
 
-## 5. Install Dependencies
+## Step 5 — Install Dependencies & Run
 
 ```bash
 npm install
-```
-
-This will install `@supabase/supabase-js` along with all other dependencies.
-
-## 6. Run the App
-
-```bash
 npm run dev
 ```
+
+Open [http://localhost:5173](http://localhost:5173) and log in. All data is now persisted in Supabase.
+
+---
+
+## Verify the Setup
+
+After running the app and logging in you can verify everything is working:
+
+1. **Tables** — Supabase dashboard → **Table Editor**: you should see `app_users`, `customers`, `products`, `invoices`, `payments`, `purchases`
+2. **Storage** — Supabase dashboard → **Storage**: you should see the `billsaathi-backups` bucket
+3. **Data** — Create a customer or product in the app, then check the corresponding table in Supabase — the row should appear immediately
+
+---
 
 ## Architecture
 
@@ -82,7 +107,7 @@ The Supabase integration is fully backward-compatible:
 - All write operations (create/update/delete) are mirrored to both localStorage and Supabase
 - If Supabase is unreachable, the app continues to work using cached localStorage data
 
-### Files
+### Key Files
 
 | File | Purpose |
 |------|---------|
@@ -91,4 +116,15 @@ The Supabase integration is fully backward-compatible:
 | `src/lib/supabaseStorage.ts` | Storage helper for file backups |
 | `src/contexts/AppContext.tsx` | App state with Supabase sync |
 | `src/components/LoadingScreen.tsx` | Loading UI shown during initial sync |
-| `supabase/migrations/001_initial_schema.sql` | Database schema |
+| `supabase/migrations/001_initial_schema.sql` | **Complete** database + storage setup script |
+
+---
+
+## Troubleshooting
+
+| Problem | Solution |
+|---------|----------|
+| "permission denied" errors | Make sure you ran the full SQL migration including the RLS policy section |
+| Storage upload fails | Make sure the SQL migration ran completely — it creates the bucket and its policies |
+| Data not appearing in Supabase | Check browser console for errors; verify `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY` in `.env.local` |
+| App shows loading spinner forever | Supabase URL or key is wrong; check `.env.local` values match **Settings → API** |
