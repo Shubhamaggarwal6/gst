@@ -20,6 +20,7 @@ function mapUserFromDb(row: Record<string, unknown>): User {
     active: row.active as boolean,
     parentUserId: row.parent_user_id as string | undefined,
     showStockToEmployees: row.show_stock_to_employees as boolean,
+    showProductsToEmployees: row.show_products_to_employees as boolean,
     firmSettings: row.firm_settings as User['firmSettings'],
   };
 }
@@ -41,6 +42,7 @@ function mapUserToDb(user: User): Record<string, unknown> {
     active: user.active,
     parent_user_id: user.parentUserId ?? null,
     show_stock_to_employees: user.showStockToEmployees,
+    show_products_to_employees: user.showProductsToEmployees,
     firm_settings: user.firmSettings ?? null,
   };
 }
@@ -252,8 +254,8 @@ export async function upsertCustomer(customer: Customer): Promise<void> {
   if (error) console.error('upsertCustomer error:', error);
 }
 
-export async function deleteCustomer(id: string): Promise<void> {
-  const { error } = await supabase.from('customers').delete().eq('id', id);
+export async function deleteCustomer(id: string, userId: string): Promise<void> {
+  const { error } = await supabase.from('customers').delete().match({ id, user_id: userId });
   if (error) console.error('deleteCustomer error:', error);
 }
 
@@ -270,8 +272,8 @@ export async function upsertProduct(product: Product): Promise<void> {
   if (error) console.error('upsertProduct error:', error);
 }
 
-export async function deleteProduct(id: string): Promise<void> {
-  const { error } = await supabase.from('products').delete().eq('id', id);
+export async function deleteProduct(id: string, userId: string): Promise<void> {
+  const { error } = await supabase.from('products').delete().match({ id, user_id: userId });
   if (error) console.error('deleteProduct error:', error);
 }
 
@@ -288,8 +290,8 @@ export async function upsertInvoice(invoice: Invoice): Promise<void> {
   if (error) console.error('upsertInvoice error:', error);
 }
 
-export async function deleteInvoice(id: string): Promise<void> {
-  const { error } = await supabase.from('invoices').delete().eq('id', id);
+export async function deleteInvoice(id: string, userId: string): Promise<void> {
+  const { error } = await supabase.from('invoices').delete().match({ id, user_id: userId });
   if (error) console.error('deleteInvoice error:', error);
 }
 
@@ -306,8 +308,8 @@ export async function upsertPayment(payment: Payment): Promise<void> {
   if (error) console.error('upsertPayment error:', error);
 }
 
-export async function deletePayment(id: string): Promise<void> {
-  const { error } = await supabase.from('payments').delete().eq('id', id);
+export async function deletePayment(id: string, userId: string): Promise<void> {
+  const { error } = await supabase.from('payments').delete().match({ id, user_id: userId });
   if (error) console.error('deletePayment error:', error);
 }
 
@@ -324,7 +326,7 @@ export async function upsertPurchase(purchase: PurchaseEntry): Promise<void> {
   if (error) console.error('upsertPurchase error:', error);
 }
 
-export async function deletePurchase(id: string): Promise<void> {
-  const { error } = await supabase.from('purchases').delete().eq('id', id);
+export async function deletePurchase(id: string, userId: string): Promise<void> {
+  const { error } = await supabase.from('purchases').delete().match({ id, user_id: userId });
   if (error) console.error('deletePurchase error:', error);
 }

@@ -76,12 +76,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
     if (!user) return;
     async function syncUserData() {
       try {
+        // Employees share the parent (owner) user's data
+        const dataUserId = user.role === 'employee' && user.parentUserId ? user.parentUserId : user.id;
         const [dbCustomers, dbProducts, dbInvoices, dbPayments, dbPurchases] = await Promise.all([
-          fetchCustomers(user.id),
-          fetchProducts(user.id),
-          fetchInvoices(user.id),
-          fetchPayments(user.id),
-          fetchPurchases(user.id),
+          fetchCustomers(dataUserId),
+          fetchProducts(dataUserId),
+          fetchInvoices(dataUserId),
+          fetchPayments(dataUserId),
+          fetchPurchases(dataUserId),
         ]);
         setCustomersState(dbCustomers); saveToStorage('bs_customers', dbCustomers);
         setProductsState(dbProducts); saveToStorage('bs_products', dbProducts);

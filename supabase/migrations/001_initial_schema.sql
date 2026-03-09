@@ -15,6 +15,7 @@ create table if not exists public.app_users (
   active boolean not null default true,
   parent_user_id text,
   show_stock_to_employees boolean not null default false,
+  show_products_to_employees boolean not null default false,
   firm_settings jsonb,
   created_at timestamptz default now()
 );
