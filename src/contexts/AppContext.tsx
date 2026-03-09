@@ -22,6 +22,15 @@ function saveToStorage(key: string, value: unknown) {
   try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
 }
 
+function getChangedItems<T extends { id: string }>(prev: T[], next: T[]): T[] {
+  const prevIds = new Set(prev.map(item => item.id));
+  return next.filter(item => {
+    if (!prevIds.has(item.id)) return true;
+    const old = prev.find(o => o.id === item.id);
+    return JSON.stringify(old) !== JSON.stringify(item);
+  });
+}
+
 interface AppState {
   currentUser: User | null;
   users: User[];
@@ -52,25 +61,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [payments, setPaymentsState] = useState<Payment[]>(() => loadFromStorage('bs_payments', initialPayments));
   const [purchases, setPurchasesState] = useState<PurchaseEntry[]>(() => loadFromStorage('bs_purchases', initialPurchases));
 
-  // On mount: sync users from Supabase
+  // On mount: seed Supabase if empty, then sync data for any already-logged-in user
   useEffect(() => {
-    async function syncFromSupabase() {
+    async function init() {
       try {
+        // Step 1: Sync users
         const dbUsers = await fetchAllUsers();
         if (dbUsers.length > 0) {
           setUsersState(dbUsers);
           saveToStorage('bs_users', dbUsers);
+        } else {
+          // Supabase has no users — seed it from localStorage/initialUsers
+          const localUsers = loadFromStorage<User[]>('bs_users', initialUsers);
+          await Promise.all(localUsers.map(u => upsertUser(u).catch(console.error)));
+          console.log('Seeded', localUsers.length, 'users to Supabase');
+        }
+
+        // Step 2: If user is already logged in (from localStorage), sync their data immediately
+        const storedUser = loadFromStorage<User | null>('bs_currentUser', null);
+        if (storedUser) {
+          const dataUserId = storedUser.role === 'employee' && storedUser.parentUserId
+            ? storedUser.parentUserId
+            : storedUser.id;
+          const [dbCustomers, dbProducts, dbInvoices, dbPayments, dbPurchases] = await Promise.all([
+            fetchCustomers(dataUserId),
+            fetchProducts(dataUserId),
+            fetchInvoices(dataUserId),
+            fetchPayments(dataUserId),
+            fetchPurchases(dataUserId),
+          ]);
+          setCustomersState(dbCustomers);   saveToStorage('bs_customers', dbCustomers);
+          setProductsState(dbProducts);     saveToStorage('bs_products', dbProducts);
+          setInvoicesState(dbInvoices);     saveToStorage('bs_invoices', dbInvoices);
+          setPaymentsState(dbPayments);     saveToStorage('bs_payments', dbPayments);
+          setPurchasesState(dbPurchases);   saveToStorage('bs_purchases', dbPurchases);
         }
       } catch (e) {
-        console.error('Supabase sync error:', e);
+        console.error('Supabase init error:', e);
       } finally {
         setLoading(false);
       }
     }
-    syncFromSupabase();
-  }, []);
+    init();
+  }, []); // runs ONCE on mount
 
-  // Sync currentUser's data when they log in
+  // Sync currentUser's data when they log in (handles fresh logins, not reloads)
   useEffect(() => {
     const user = currentUser;
     if (!user) return;
@@ -107,7 +142,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setUsersState(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_users', next);
-      next.forEach(u => upsertUser(u).catch(console.error));
+      getChangedItems(prev, next).forEach(u => upsertUser(u).catch(console.error));
       return next;
     });
   };
@@ -116,7 +151,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setCustomersState(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_customers', next);
-      next.forEach(c => upsertCustomer(c).catch(console.error));
+      getChangedItems(prev, next).forEach(c => upsertCustomer(c).catch(console.error));
       return next;
     });
   };
@@ -125,7 +160,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setProductsState(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_products', next);
-      next.forEach(p => upsertProduct(p).catch(console.error));
+      getChangedItems(prev, next).forEach(p => upsertProduct(p).catch(console.error));
       return next;
     });
   };
@@ -134,7 +169,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setInvoicesState(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_invoices', next);
-      next.forEach(i => upsertInvoice(i).catch(console.error));
+      getChangedItems(prev, next).forEach(i => upsertInvoice(i).catch(console.error));
       return next;
     });
   };
@@ -143,7 +178,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPaymentsState(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_payments', next);
-      next.forEach(p => upsertPayment(p).catch(console.error));
+      getChangedItems(prev, next).forEach(p => upsertPayment(p).catch(console.error));
       return next;
     });
   };
@@ -152,7 +187,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setPurchasesState(prev => {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_purchases', next);
-      next.forEach(p => upsertPurchase(p).catch(console.error));
+      getChangedItems(prev, next).forEach(p => upsertPurchase(p).catch(console.error));
       return next;
     });
   };
