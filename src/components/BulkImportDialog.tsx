@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { Button } from '@/components/ui/button';
 import { Upload, X, Download, FileSpreadsheet, AlertCircle, CheckCircle2 } from 'lucide-react';
-import * as XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import { saveAs } from 'file-saver';
 import { toast } from 'sonner';
 
 interface ColumnDef {
@@ -30,36 +31,51 @@ export default function BulkImportDialog({ open, onClose, title, columns, onImpo
 
   if (!open) return null;
 
-  const downloadTemplate = () => {
-    const wb = XLSX.utils.book_new();
-    const headers = columns.map(c => c.label);
-    const sample = sampleData.map(row => columns.map(c => row[c.key] ?? c.defaultValue ?? ''));
-    const ws = XLSX.utils.aoa_to_sheet([headers, ...sample]);
-    // Set column widths
-    ws['!cols'] = columns.map(() => ({ wch: 18 }));
-    XLSX.utils.book_append_sheet(wb, ws, 'Template');
-    XLSX.writeFile(wb, `${templateFileName}.xlsx`);
+  const downloadTemplate = async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('Template');
+    ws.columns = columns.map(() => ({ width: 18 }));
+    const headerRow = ws.addRow(columns.map(c => c.label));
+    headerRow.font = { bold: true };
+    sampleData.forEach(row => ws.addRow(columns.map(c => row[c.key] ?? c.defaultValue ?? '')));
+    const buffer = await wb.xlsx.writeBuffer();
+    saveAs(new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }), `${templateFileName}.xlsx`);
     toast.success('Template downloaded!');
   };
 
   const handleFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    const isCsv = file.name.toLowerCase().endsWith('.csv');
 
     const reader = new FileReader();
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
-        const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-        const wb = XLSX.read(data, { type: 'array' });
-        const ws = wb.Sheets[wb.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json<string[]>(ws, { header: 1 });
+        let jsonData: unknown[][];
+
+        if (isCsv) {
+          const text = evt.target?.result as string;
+          jsonData = text.split('\n')
+            .filter(l => l.trim())
+            .map(line => line.split(',').map(v => v.trim().replace(/^"|"$/g, '')));
+        } else {
+          const buffer = evt.target?.result as ArrayBuffer;
+          const wb = new ExcelJS.Workbook();
+          await wb.xlsx.load(buffer);
+          const ws = wb.worksheets[0];
+          jsonData = [];
+          ws.eachRow((row) => {
+            const values = (row.values as unknown[]).slice(1);
+            jsonData.push(values.map(v => (v !== null && v !== undefined ? v : '')));
+          });
+        }
 
         if (jsonData.length < 2) {
           setErrors(['File is empty or has no data rows.']);
           return;
         }
 
-        const headerRow = (jsonData[0] as string[]).map(h => String(h).trim().toLowerCase());
+        const headerRow = (jsonData[0] as unknown[]).map(h => String(h).trim().toLowerCase());
         const colMap: Record<string, number> = {};
         columns.forEach(col => {
           const idx = headerRow.findIndex(h =>
@@ -118,7 +134,11 @@ export default function BulkImportDialog({ open, onClose, title, columns, onImpo
         setErrors(['Could not parse file. Please use the Excel template.']);
       }
     };
-    reader.readAsArrayBuffer(file);
+    if (isCsv) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsArrayBuffer(file);
+    }
     e.target.value = '';
   };
 
