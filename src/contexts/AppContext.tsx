@@ -72,15 +72,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   // Sync currentUser's data when they log in
   useEffect(() => {
-    if (!currentUser) return;
+    const user = currentUser;
+    if (!user) return;
     async function syncUserData() {
       try {
         const [dbCustomers, dbProducts, dbInvoices, dbPayments, dbPurchases] = await Promise.all([
-          fetchCustomers(currentUser!.id),
-          fetchProducts(currentUser!.id),
-          fetchInvoices(currentUser!.id),
-          fetchPayments(currentUser!.id),
-          fetchPurchases(currentUser!.id),
+          fetchCustomers(user.id),
+          fetchProducts(user.id),
+          fetchInvoices(user.id),
+          fetchPayments(user.id),
+          fetchPurchases(user.id),
         ]);
         setCustomersState(dbCustomers); saveToStorage('bs_customers', dbCustomers);
         setProductsState(dbProducts); saveToStorage('bs_products', dbProducts);
