@@ -22,7 +22,7 @@ export default function ReportsPanel() {
   const [reportTab, setReportTab] = useState<'overview' | 'gstr1' | 'gstr3b' | 'monthly' | 'outstanding'>('overview');
   const isMobile = useIsMobile();
 
-  const userId = currentUser?.id!;
+  const userId = currentUser?.role === 'employee' && currentUser?.parentUserId ? currentUser.parentUserId : currentUser?.id!;
   const firmUser = currentUser?.role === 'employee' ? users.find(u => u.id === currentUser.parentUserId) : currentUser;
 
   let myInvoices = invoices.filter(i => i.userId === userId);

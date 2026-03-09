@@ -74,14 +74,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const user = currentUser;
     if (!user) return;
+    // For employees, data is stored under the parent user's ID
+    const dataUserId = user.role === 'employee' && user.parentUserId ? user.parentUserId : user.id;
     async function syncUserData() {
       try {
         const [dbCustomers, dbProducts, dbInvoices, dbPayments, dbPurchases] = await Promise.all([
-          fetchCustomers(user.id),
-          fetchProducts(user.id),
-          fetchInvoices(user.id),
-          fetchPayments(user.id),
-          fetchPurchases(user.id),
+          fetchCustomers(dataUserId),
+          fetchProducts(dataUserId),
+          fetchInvoices(dataUserId),
+          fetchPayments(dataUserId),
+          fetchPurchases(dataUserId),
         ]);
         setCustomersState(dbCustomers); saveToStorage('bs_customers', dbCustomers);
         setProductsState(dbProducts); saveToStorage('bs_products', dbProducts);
@@ -99,6 +101,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setCurrentUser = (u: User | null) => {
     setCurrentUserState(u);
     saveToStorage('bs_currentUser', u);
+    // Clear previous user's data on logout or user switch to prevent data bleed
+    if (!u) {
+      setCustomersState([]); saveToStorage('bs_customers', []);
+      setProductsState([]); saveToStorage('bs_products', []);
+      setInvoicesState([]); saveToStorage('bs_invoices', []);
+      setPaymentsState([]); saveToStorage('bs_payments', []);
+      setPurchasesState([]); saveToStorage('bs_purchases', []);
+    }
   };
 
   const setUsers: React.Dispatch<React.SetStateAction<User[]>> = (action) => {
