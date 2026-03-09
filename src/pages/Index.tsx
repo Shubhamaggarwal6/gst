@@ -6,9 +6,12 @@ import EmployeeDashboard from './EmployeeDashboard';
 import { getSubscriptionStatus } from '@/lib/subscription';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
+import LoadingScreen from '@/components/LoadingScreen';
 
 const Index = () => {
-  const { currentUser, users, setCurrentUser } = useApp();
+  const { currentUser, users, setCurrentUser, loading } = useApp();
+
+  if (loading) return <LoadingScreen />;
 
   if (!currentUser) return <LoginPage />;
 

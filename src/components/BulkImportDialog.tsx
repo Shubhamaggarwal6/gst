@@ -75,7 +75,7 @@ export default function BulkImportDialog({ open, onClose, title, columns, onImpo
           return;
         }
 
-        const headerRow = (jsonData[0] as string[]).map(h => String(h).trim().toLowerCase());
+        const headerRow = (jsonData[0] as unknown[]).map(h => String(h).trim().toLowerCase());
         const colMap: Record<string, number> = {};
         columns.forEach(col => {
           const idx = headerRow.findIndex(h =>
