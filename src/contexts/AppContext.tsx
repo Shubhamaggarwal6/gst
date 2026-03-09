@@ -3,11 +3,11 @@ import { User, Customer, Product, Invoice, Payment, PurchaseEntry } from '@/lib/
 import { initialUsers, initialCustomers, initialProducts, initialInvoices, initialPayments, initialPurchases } from '@/lib/demoData';
 import {
   fetchAllUsers, upsertUser,
-  fetchCustomers, upsertCustomer,
-  fetchProducts, upsertProduct,
-  fetchInvoices, upsertInvoice,
-  fetchPayments, upsertPayment,
-  fetchPurchases, upsertPurchase,
+  fetchCustomers, upsertCustomer, deleteCustomer,
+  fetchProducts, upsertProduct, deleteProduct,
+  fetchInvoices, upsertInvoice, deleteInvoice,
+  fetchPayments, upsertPayment, deletePayment,
+  fetchPurchases, upsertPurchase, deletePurchase,
 } from '@/lib/supabaseDb';
 
 function loadFromStorage<T>(key: string, fallback: T): T {
@@ -74,14 +74,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const user = currentUser;
     if (!user) return;
+    // For employees, data is stored under the parent user's ID
+    const dataUserId = user.role === 'employee' && user.parentUserId ? user.parentUserId : user.id;
     async function syncUserData() {
       try {
         const [dbCustomers, dbProducts, dbInvoices, dbPayments, dbPurchases] = await Promise.all([
-          fetchCustomers(user.id),
-          fetchProducts(user.id),
-          fetchInvoices(user.id),
-          fetchPayments(user.id),
-          fetchPurchases(user.id),
+          fetchCustomers(dataUserId),
+          fetchProducts(dataUserId),
+          fetchInvoices(dataUserId),
+          fetchPayments(dataUserId),
+          fetchPurchases(dataUserId),
         ]);
         setCustomersState(dbCustomers); saveToStorage('bs_customers', dbCustomers);
         setProductsState(dbProducts); saveToStorage('bs_products', dbProducts);
@@ -99,6 +101,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setCurrentUser = (u: User | null) => {
     setCurrentUserState(u);
     saveToStorage('bs_currentUser', u);
+    // Clear previous user's data on logout or user switch to prevent data bleed
+    if (!u) {
+      setCustomersState([]); saveToStorage('bs_customers', []);
+      setProductsState([]); saveToStorage('bs_products', []);
+      setInvoicesState([]); saveToStorage('bs_invoices', []);
+      setPaymentsState([]); saveToStorage('bs_payments', []);
+      setPurchasesState([]); saveToStorage('bs_purchases', []);
+    }
   };
 
   const setUsers: React.Dispatch<React.SetStateAction<User[]>> = (action) => {
@@ -115,6 +125,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_customers', next);
       next.forEach(c => upsertCustomer(c).catch(console.error));
+      const nextIds = new Set(next.map(c => c.id));
+      prev.filter(c => !nextIds.has(c.id)).forEach(c => deleteCustomer(c.id, c.userId).catch(console.error));
       return next;
     });
   };
@@ -124,6 +136,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_products', next);
       next.forEach(p => upsertProduct(p).catch(console.error));
+      const nextIds = new Set(next.map(p => p.id));
+      prev.filter(p => !nextIds.has(p.id)).forEach(p => deleteProduct(p.id, p.userId).catch(console.error));
       return next;
     });
   };
@@ -133,6 +147,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_invoices', next);
       next.forEach(i => upsertInvoice(i).catch(console.error));
+      const nextIds = new Set(next.map(i => i.id));
+      prev.filter(i => !nextIds.has(i.id)).forEach(i => deleteInvoice(i.id, i.userId).catch(console.error));
       return next;
     });
   };
@@ -142,6 +158,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_payments', next);
       next.forEach(p => upsertPayment(p).catch(console.error));
+      const nextIds = new Set(next.map(p => p.id));
+      prev.filter(p => !nextIds.has(p.id)).forEach(p => deletePayment(p.id, p.userId).catch(console.error));
       return next;
     });
   };
@@ -151,6 +169,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const next = typeof action === 'function' ? action(prev) : action;
       saveToStorage('bs_purchases', next);
       next.forEach(p => upsertPurchase(p).catch(console.error));
+      const nextIds = new Set(next.map(p => p.id));
+      prev.filter(p => !nextIds.has(p.id)).forEach(p => deletePurchase(p.id, p.userId).catch(console.error));
       return next;
     });
   };
